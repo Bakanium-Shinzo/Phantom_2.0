@@ -1,0 +1,974 @@
+openapi: 3.0.3
+info:
+  title: FNB Phantom Banking API
+  description: |
+    # Banking-as-a-Service Platform for Financial Inclusion
+    
+    The FNB Phantom Banking API enables businesses to offer banking services to all customers, including the unbanked, through our innovative phantom wallet system.
+    
+    ## Core Value Proposition
+    - **Increase FNB Deposits**: Capture unbanked customer funds
+    - **Boost Transaction Volume**: Enable multi-channel payment processing
+    - **Accelerate Digital Onboarding**: Frictionless wallet-to-account conversion
+    
+    ## Key Features
+    - Multi-channel payment processing (QR, USSD, Mobile Money, EFT)
+    - Real-time transaction settlement with FNB
+    - Seamless wallet upgrade to full FNB accounts
+    - Enterprise-grade security and compliance
+    - Comprehensive analytics and reporting
+    
+    ## Authentication
+    All API endpoints require authentication using API keys in the Authorization header:
+    ```
+    Authorization: Bearer pb_12345678_abcdef1234567890
+    ```
+    
+    ## Rate Limits
+    - Standard: 1000 requests/hour
+    - Premium: 10000 requests/hour
+    - Enterprise: Unlimited
+    
+    ## Support
+    - Email: api-support@fnb-phantom.com
+    - Docs: https://docs.fnb-phantom.com
+    - Status: https://status.fnb-phantom.com
+    
+  version: 1.0.0
+  contact:
+    name: FNB Phantom Banking API Support
+    email: api-support@fnb-phantom.com
+    url: https://docs.fnb-phantom.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.fnb-phantom.com/v1
+    description: Production server
+  - url: https://staging-api.fnb-phantom.com/v1
+    description: Staging server
+  - url: http://localhost:5000/api/v1
+    description: Development server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /wallets:
+    get:
+      tags:
+        - Wallet Management
+      summary: List all wallets
+      description: Retrieve all phantom wallets for the authenticated business
+      parameters:
+        - name: status
+          in: query
+          description: Filter by wallet status
+          required: false
+          schema:
+            type: string
+            enum: [active, suspended, upgraded, closed]
+        - name: limit
+          in: query
+          description: Maximum number of wallets to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of wallets to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of wallets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Wallet'
+                  total:
+                    type: integer
+                    description: Total number of wallets
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+    
+    post:
+      tags:
+        - Wallet Management
+      summary: Create new phantom wallet
+      description: Create a new phantom wallet for a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+      responses:
+        '201':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Customer already has a wallet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /wallets/{walletId}:
+    get:
+      tags:
+        - Wallet Management
+      summary: Get wallet details
+      description: Retrieve detailed information about a specific wallet
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Unique wallet identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Wallet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDetailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    patch:
+      tags:
+        - Wallet Management
+      summary: Update wallet settings
+      description: Update wallet configuration such as limits and status
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWalletRequest'
+      responses:
+        '200':
+          description: Wallet updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /wallets/{walletId}/upgrade:
+    post:
+      tags:
+        - Wallet Management
+      summary: Upgrade to FNB account
+      description: |
+        Upgrade a phantom wallet to a full FNB account. This process:
+        1. Validates customer KYC status
+        2. Creates FNB account via integration
+        3. Transfers phantom wallet balance
+        4. Updates wallet status to 'upgraded'
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                account_type:
+                  type: string
+                  enum: [SAVINGS, CHEQUE, BUSINESS]
+                  default: CHEQUE
+                  description: Type of FNB account to create
+      responses:
+        '200':
+          description: Wallet upgraded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Wallet successfully upgraded to FNB account"
+                  fnb_account_number:
+                    type: string
+                    example: "6212345678"
+                  wallet_id:
+                    type: string
+                    format: uuid
+        '400':
+          description: Upgrade requirements not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /wallets/{walletId}/transactions:
+    get:
+      tags:
+        - Wallet Management
+      summary: Get wallet transaction history
+      description: Retrieve transaction history for a specific wallet
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: from_date
+          in: query
+          description: Start date for transaction history (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          description: End date for transaction history (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: type
+          in: query
+          description: Filter by transaction type
+          required: false
+          schema:
+            type: string
+            enum: [credit, debit]
+        - name: method
+          in: query
+          description: Filter by payment method
+          required: false
+          schema:
+            type: string
+            enum: [qr, ussd, eft, mobile_money, card]
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  wallet_id:
+                    type: string
+                    format: uuid
+                  total_transactions:
+                    type: integer
+                  total_volume:
+                    type: number
+                    format: double
+
+  /payments/process:
+    post:
+      tags:
+        - Payment Processing
+      summary: Process payment
+      description: |
+        Process a payment to a phantom wallet. Supports multiple payment methods:
+        - QR Code payments
+        - USSD payments
+        - Mobile Money (Orange Money, MyZaka)
+        - EFT transfers
+        - Card payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Payment validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentError'
+        '402':
+          description: Insufficient balance or limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentError'
+
+  /payments/qr:
+    post:
+      tags:
+        - Payment Processing
+      summary: Process QR payment
+      description: Process a payment initiated via QR code scan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallet_id
+                - amount
+              properties:
+                wallet_id:
+                  type: string
+                  format: uuid
+                  description: Target wallet ID from QR code
+                amount:
+                  type: number
+                  format: double
+                  minimum: 1.0
+                  maximum: 100000.0
+                  description: Payment amount in BWP
+                qr_data:
+                  type: string
+                  description: Original QR code data for verification
+      responses:
+        '200':
+          description: QR payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /payments/ussd:
+    post:
+      tags:
+        - Payment Processing
+      summary: Process USSD payment
+      description: Process a payment initiated via USSD code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ussd_code
+                - amount
+              properties:
+                ussd_code:
+                  type: string
+                  pattern: '^\*[0-9]{4}#$'
+                  example: "*1234#"
+                  description: USSD code for wallet access
+                amount:
+                  type: number
+                  format: double
+                  minimum: 1.0
+                  maximum: 100000.0
+                  description: Payment amount in BWP
+      responses:
+        '200':
+          description: USSD payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /payments/mobile-money:
+    post:
+      tags:
+        - Payment Processing
+      summary: Process mobile money payment
+      description: Process payment from mobile money providers (Orange Money, MyZaka)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wallet_id
+                - amount
+                - provider
+                - source_phone
+              properties:
+                wallet_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: double
+                  minimum: 1.0
+                  maximum: 100000.0
+                provider:
+                  type: string
+                  enum: [orange_money, myzaka]
+                  description: Mobile money provider
+                source_phone:
+                  type: string
+                  pattern: '^\+267[0-9]{8}$'
+                  example: "+267 71 123 456"
+                  description: Source phone number
+                provider_reference:
+                  type: string
+                  description: Provider transaction reference
+      responses:
+        '200':
+          description: Mobile money payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /business/analytics:
+    get:
+      tags:
+        - Business Intelligence
+      summary: Get business analytics
+      description: |
+        Retrieve comprehensive business analytics and KPIs that align with FNB's strategic objectives:
+        - Deposit volume metrics
+        - Transaction count and trends
+        - Customer acquisition and retention
+        - Digital engagement metrics
+      parameters:
+        - name: period
+          in: query
+          description: Analytics period
+          required: false
+          schema:
+            type: string
+            enum: [day, week, month, quarter, year]
+            default: month
+        - name: from_date
+          in: query
+          description: Start date for analytics period
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          description: End date for analytics period
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Business analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessAnalytics'
+
+  /business/profile:
+    get:
+      tags:
+        - Business Management
+      summary: Get business profile
+      description: Retrieve authenticated business profile information
+      responses:
+        '200':
+          description: Business profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Business'
+
+  /webhooks/test:
+    post:
+      tags:
+        - Webhooks
+      summary: Test webhook endpoint
+      description: Test webhook connectivity and payload format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhook_url:
+                  type: string
+                  format: uri
+                  description: Webhook URL to test
+                event_type:
+                  type: string
+                  enum: [payment_completed, wallet_created, wallet_upgraded]
+      responses:
+        '200':
+          description: Webhook test successful
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: API key in format "Bearer pb_12345678_abcdef1234567890"
+
+  schemas:
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique wallet identifier
+        customer_name:
+          type: string
+          example: "John Doe"
+        customer_phone:
+          type: string
+          example: "+267 71 123 456"
+        balance:
+          type: number
+          format: double
+          example: 1250.50
+          description: Current wallet balance in BWP
+        status:
+          type: string
+          enum: [active, suspended, upgraded, closed]
+          example: "active"
+        ussd_code:
+          type: string
+          example: "*1234#"
+          description: USSD access code for the wallet
+        daily_limit:
+          type: number
+          format: double
+          example: 5000.00
+        monthly_limit:
+          type: number
+          format: double
+          example: 50000.00
+        created_at:
+          type: string
+          format: date-time
+        last_activity:
+          type: string
+          format: date-time
+        fnb_account_number:
+          type: string
+          nullable: true
+          example: "6212345678"
+          description: FNB account number (when upgraded)
+
+    WalletDetailed:
+      allOf:
+        - $ref: '#/components/schemas/Wallet'
+        - type: object
+          properties:
+            customer_email:
+              type: string
+              format: email
+              nullable: true
+            customer_id_number:
+              type: string
+              nullable: true
+            kyc_status:
+              type: string
+              enum: [pending, partial, complete]
+            transaction_count:
+              type: integer
+              description: Total number of transactions
+            last_transaction_id:
+              type: string
+              format: uuid
+              nullable: true
+
+    CreateWalletRequest:
+      type: object
+      required:
+        - customer_name
+        - customer_phone
+      properties:
+        customer_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Doe"
+        customer_phone:
+          type: string
+          pattern: '^\+267[0-9]{8}$'
+          example: "+267 71 123 456"
+          description: Botswana phone number format
+        customer_email:
+          type: string
+          format: email
+          nullable: true
+          example: "john@example.com"
+        daily_limit:
+          type: number
+          format: double
+          minimum: 100.0
+          maximum: 50000.0
+          default: 5000.0
+          description: Daily transaction limit in BWP
+        monthly_limit:
+          type: number
+          format: double
+          minimum: 1000.0
+          maximum: 500000.0
+          default: 50000.0
+          description: Monthly transaction limit in BWP
+
+    UpdateWalletRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, suspended]
+        daily_limit:
+          type: number
+          format: double
+          minimum: 100.0
+          maximum: 50000.0
+        monthly_limit:
+          type: number
+          format: double
+          minimum: 1000.0
+          maximum: 500000.0
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+          example: 250.00
+        type:
+          type: string
+          enum: [credit, debit]
+          example: "credit"
+        method:
+          type: string
+          enum: [qr, ussd, eft, mobile_money, card]
+          example: "qr"
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          example: "completed"
+        description:
+          type: string
+          example: "QR Payment - Store Purchase"
+        reference:
+          type: string
+          example: "PB16789012345678"
+          description: Unique transaction reference
+        timestamp:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        fnb_transaction_id:
+          type: string
+          nullable: true
+          description: FNB system transaction ID
+
+    PaymentRequest:
+      type: object
+      required:
+        - wallet_id
+        - amount
+        - method
+        - description
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+          description: Target wallet for payment
+        amount:
+          type: number
+          format: double
+          minimum: 1.0
+          maximum: 100000.0
+          example: 150.00
+          description: Payment amount in BWP
+        method:
+          type: string
+          enum: [qr, ussd, eft, mobile_money, card]
+          example: "qr"
+        description:
+          type: string
+          minLength: 5
+          maxLength: 255
+          example: "Store purchase payment"
+        source_info:
+          type: object
+          nullable: true
+          description: Additional source information (method-specific)
+          example:
+            source: "qr_scan"
+            terminal_id: "TRM001"
+            merchant_location: "Gaborone Mall"
+
+    PaymentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        transaction_id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          example: "PB16789012345678"
+        new_balance:
+          type: number
+          format: double
+          example: 1400.50
+          description: Updated wallet balance
+        timestamp:
+          type: string
+          format: date-time
+        processing_time_ms:
+          type: integer
+          example: 1250
+          description: Processing time in milliseconds
+
+    PaymentError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Daily transaction limit exceeded"
+        code:
+          type: string
+          example: "LIMIT_EXCEEDED"
+          enum: 
+            - WALLET_NOT_FOUND
+            - WALLET_INACTIVE
+            - AMOUNT_TOO_LOW
+            - AMOUNT_TOO_HIGH
+            - LIMIT_EXCEEDED
+            - INSUFFICIENT_BALANCE
+            - PROCESSING_ERROR
+        details:
+          type: object
+          nullable: true
+
+    BusinessAnalytics:
+      type: object
+      properties:
+        business_metrics:
+          type: object
+          properties:
+            total_wallets:
+              type: integer
+              example: 1250
+            active_wallets:
+              type: integer
+              example: 1180
+            total_deposit_volume:
+              type: number
+              format: double
+              example: 2500000.00
+              description: Total deposits generated (KEY FNB METRIC)
+            total_transaction_count:
+              type: integer
+              example: 15678
+              description: Total transactions processed (KEY FNB METRIC)
+            monthly_transaction_volume:
+              type: number
+              format: double
+              example: 180000.00
+            average_wallet_balance:
+              type: number
+              format: double
+              example: 850.25
+        fnb_impact:
+          type: object
+          description: Direct impact on FNB's strategic objectives
+          properties:
+            new_deposits_generated:
+              type: number
+              format: double
+              example: 2500000.00
+              description: New deposits captured from unbanked customers
+            new_transactions_processed:
+              type: integer
+              example: 15678
+              description: Additional transaction volume for FNB
+            potential_new_customers:
+              type: integer
+              example: 1250
+              description: Phantom wallet holders ready for conversion
+            successful_account_upgrades:
+              type: integer
+              example: 234
+              description: Phantom wallets converted to FNB accounts
+            digital_engagement_increase:
+              type: number
+              format: double
+              example: 65.5
+              description: Percentage increase in digital interactions
+
+    Business:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Acme Store Ltd"
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        fnb_account_number:
+          type: string
+          example: "1234567890"
+        status:
+          type: string
+          enum: [pending, approved, active, suspended]
+        total_deposit_volume:
+          type: number
+          format: double
+        total_transaction_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          nullable: true
+          description: Additional error details
+
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid API key"
+            code: "UNAUTHORIZED"
+
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Validation failed"
+            code: "VALIDATION_ERROR"
+            details:
+              customer_phone: "Invalid phone number format"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Wallet not found"
+            code: "NOT_FOUND"
+
+    RateLimitExceeded:
+      description: API rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Rate limit exceeded"
+            code: "RATE_LIMIT_EXCEEDED"
+            details:
+              limit: 1000
+              window: "1 hour"
+              retry_after: 1800
+
+tags:
+  - name: Wallet Management
+    description: Create and manage phantom wallets
+  - name: Payment Processing
+    description: Process payments through multiple channels
+  - name: Business Intelligence
+    description: Analytics and reporting for business insights
+  - name: Business Management
+    description: Business profile and configuration
+  - name: Webhooks
+    description: Webhook configuration and testing
+
+externalDocs:
+  description: Complete Documentation
+  url: https://docs.fnb-phantom.com

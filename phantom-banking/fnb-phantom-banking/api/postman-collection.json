@@ -1,0 +1,893 @@
+{
+  "info": {
+    "name": "FNB Phantom Banking API",
+    "description": "Complete API collection for FNB Phantom Banking Platform\n\n## Overview\nThis collection provides comprehensive testing for the Phantom Banking system, including:\n- Business onboarding and management\n- Wallet creation and management\n- Multi-channel payment processing\n- FNB integration testing\n- Mobile money integration\n- Analytics and reporting\n\n## Setup Instructions\n1. Import this collection into Postman\n2. Set up environment variables (see Environment tab)\n3. Run the Authentication request first\n4. Execute requests in logical order for complete workflow testing\n\n## Environment Variables Required\n- `base_url`: http://localhost:5000\n- `fnb_base_url`: http://localhost:5001\n- `api_key`: Your API key from business registration\n- `business_email`: Your business email\n- `business_password`: Your business password\n\n## Documentation\nFull API documentation: {{base_url}}/api/docs/\n\n## Support\nFor issues or questions, contact: api-support@fnb-phantom.com",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "fnb_base_url", 
+      "value": "http://localhost:5001"
+    },
+    {
+      "key": "api_key",
+      "value": "pb_12345678_abcdef1234567890"
+    },
+    {
+      "key": "business_email",
+      "value": "demo@fnb-phantom.com"
+    },
+    {
+      "key": "business_password",
+      "value": "demo123456"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏢 Business Management",
+      "description": "Business registration, login, and profile management",
+      "item": [
+        {
+          "name": "Register New Business",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Business Ltd\",\n  \"email\": \"test@business.com\",\n  \"phone\": \"+267 71 123 456\",\n  \"password\": \"SecurePass123!\",\n  \"confirm_password\": \"SecurePass123!\",\n  \"fnb_account\": \"1234567890\",\n  \"registration_number\": \"BW00001234567\",\n  \"business_type\": \"RETAIL\",\n  \"industry\": \"GENERAL_TRADE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/business/register",
+              "host": ["{{base_url}}"],
+              "path": ["business", "register"]
+            },
+            "description": "Register a new business for Phantom Banking services"
+          },
+          "response": []
+        },
+        {
+          "name": "Business Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{business_email}}\",\n  \"password\": \"{{business_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/business/login",
+              "host": ["{{base_url}}"],
+              "path": ["business", "login"]
+            },
+            "description": "Authenticate business user and get session"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business/analytics?period=month",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business", "analytics"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            },
+            "description": "Get comprehensive business analytics and KPIs"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/business/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "business", "profile"]
+            },
+            "description": "Get authenticated business profile information"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👛 Wallet Management",
+      "description": "Create and manage phantom wallets",
+      "item": [
+        {
+          "name": "Create Phantom Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type", 
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"John Doe\",\n  \"customer_phone\": \"+267 71 123 456\",\n  \"customer_email\": \"john@example.com\",\n  \"daily_limit\": 5000.00,\n  \"monthly_limit\": 50000.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wallets"]
+            },
+            "description": "Create a new phantom wallet for a customer"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Wallet created successfully\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var response = pm.response.json();",
+                  "    pm.expect(response.id).to.not.be.undefined;",
+                  "    pm.expect(response.ussd_code).to.not.be.undefined;",
+                  "    ",
+                  "    // Store wallet ID for subsequent tests",
+                  "    pm.environment.set(\"wallet_id\", response.id);",
+                  "    pm.environment.set(\"ussd_code\", response.ussd_code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List All Wallets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets?status=active&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wallets"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "List all wallets for the authenticated business"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets/{{wallet_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wallets", "{{wallet_id}}"]
+            },
+            "description": "Get detailed information about a specific wallet"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/wallet/{{wallet_id}}/balance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wallet", "{{wallet_id}}", "balance"]
+            },
+            "description": "Check wallet balance and status"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets/{{wallet_id}}/transactions?from_date=2024-01-01&type=credit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wallets", "{{wallet_id}}", "transactions"],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "type",
+                  "value": "credit"
+                }
+              ]
+            },
+            "description": "Get transaction history for a specific wallet"
+          },
+          "response": []
+        },
+        {
+          "name": "Upgrade Wallet to FNB Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_type\": \"CHEQUE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets/{{wallet_id}}/upgrade",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "wallets", "{{wallet_id}}", "upgrade"]
+            },
+            "description": "Upgrade phantom wallet to full FNB account"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Wallet upgraded successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.fnb_account_number).to.not.be.undefined;",
+                  "    ",
+                  "    // Store FNB account number",
+                  "    pm.environment.set(\"fnb_account_number\", response.fnb_account_number);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💳 Payment Processing",
+      "description": "Multi-channel payment processing",
+      "item": [
+        {
+          "name": "QR Code Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{wallet_id}}\",\n  \"amount\": 150.50,\n  \"qr_data\": \"phantom_qr_scan_data\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/qr",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "payments", "qr"]
+            },
+            "description": "Process QR code payment"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"QR payment processed successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.transaction_id).to.not.be.undefined;",
+                  "    pm.expect(response.reference).to.not.be.undefined;",
+                  "    ",
+                  "    // Store transaction details",
+                  "    pm.environment.set(\"last_transaction_id\", response.transaction_id);",
+                  "    pm.environment.set(\"last_reference\", response.reference);",
+                  "});",
+                  "",
+                  "pm.test(\"Balance updated correctly\", function () {",
+                  "    var response = pm.response.json();",
+                  "    pm.expect(response.new_balance).to.be.a('number');",
+                  "    pm.expect(response.new_balance).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "USSD Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ussd_code\": \"{{ussd_code}}\",\n  \"amount\": 75.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/ussd",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "payments", "ussd"]
+            },
+            "description": "Process USSD payment using wallet's USSD code"
+          },
+          "response": []
+        },
+        {
+          "name": "Mobile Money Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{wallet_id}}\",\n  \"amount\": 200.00,\n  \"provider\": \"orange_money\",\n  \"source_phone\": \"+267 72 987 654\",\n  \"provider_reference\": \"OM123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/mobile-money",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "payments", "mobile-money"]
+            },
+            "description": "Process mobile money payment (Orange Money, MyZaka)"
+          },
+          "response": []
+        },
+        {
+          "name": "Generic Payment Processing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_key}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{wallet_id}}\",\n  \"amount\": 100.00,\n  \"method\": \"eft\",\n  \"description\": \"EFT Payment from Bank Transfer\",\n  \"source_info\": {\n    \"source\": \"bank_transfer\",\n    \"bank_reference\": \"EFT123456789\",\n    \"source_account\": \"9876543210\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/process",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "payments", "process"]
+            },
+            "description": "Generic payment processing endpoint for all payment methods"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏦 FNB Integration",
+      "description": "Mock FNB Bank integration testing",
+      "item": [
+        {
+          "name": "Create FNB Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"John Doe\",\n  \"customer_phone\": \"+267 71 123 456\",\n  \"customer_email\": \"john@example.com\",\n  \"initial_balance\": 1000.00,\n  \"account_type\": \"CHEQUE\",\n  \"phantom_wallet_id\": \"{{wallet_id}}\",\n  \"phantom_business_id\": \"business_123\"\n}"
+            },
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/accounts/create",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "accounts", "create"]
+            },
+            "description": "Create FNB account via mock banking API"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"FNB account created successfully\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.account_number).to.not.be.undefined;",
+                  "    ",
+                  "    // Store FNB account details",
+                  "    pm.environment.set(\"fnb_account_number\", response.account_number);",
+                  "    pm.environment.set(\"fnb_customer_id\", response.customer_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check FNB Account Balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/accounts/{{fnb_account_number}}/balance",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "accounts", "{{fnb_account_number}}", "balance"]
+            },
+            "description": "Check balance of FNB account"
+          },
+          "response": []
+        },
+        {
+          "name": "Process FNB Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_number\": \"{{fnb_account_number}}\",\n  \"amount\": 250.00,\n  \"transaction_type\": \"CREDIT\",\n  \"description\": \"Phantom Banking Settlement\",\n  \"reference\": \"{{last_reference}}\",\n  \"transaction_code\": \"PHANTOM\",\n  \"phantom_transaction_id\": \"{{last_transaction_id}}\",\n  \"phantom_wallet_id\": \"{{wallet_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/transactions/process",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "transactions", "process"]
+            },
+            "description": "Process transaction in FNB account"
+          },
+          "response": []
+        },
+        {
+          "name": "Get FNB Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/transactions/{{fnb_account_number}}/history",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "transactions", "{{fnb_account_number}}", "history"]
+            },
+            "description": "Get transaction history for FNB account"
+          },
+          "response": []
+        },
+        {
+          "name": "List All FNB Accounts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/accounts/list",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "accounts", "list"]
+            },
+            "description": "List all FNB accounts (for testing)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📱 Mobile Money Integration",
+      "description": "Orange Money and MyZaka integration",
+      "item": [
+        {
+          "name": "Orange Money Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"orange_money\",\n  \"amount\": 500.00,\n  \"source_phone\": \"+267 72 123 456\",\n  \"target_account\": \"{{fnb_account_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/mobile-money/deposit",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "mobile-money", "deposit"]
+            },
+            "description": "Process Orange Money deposit to FNB account"
+          },
+          "response": []
+        },
+        {
+          "name": "MyZaka Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"myzaka\",\n  \"amount\": 300.00,\n  \"source_phone\": \"+267 73 987 654\",\n  \"target_account\": \"{{fnb_account_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/mobile-money/deposit",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "mobile-money", "deposit"]
+            },
+            "description": "Process MyZaka deposit to FNB account"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔗 Webhook Management",
+      "description": "Webhook testing and management",
+      "item": [
+        {
+          "name": "Test Webhook Delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"webhook_url\": \"{{base_url}}/webhooks/fnb\"\n}"
+            },
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/webhooks/test",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "webhooks", "test"]
+            },
+            "description": "Test webhook connectivity and payload format"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Webhook Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fnb_base_url}}/api/v1/webhooks/logs",
+              "host": ["{{fnb_base_url}}"],
+              "path": ["api", "v1", "webhooks", "logs"]
+            },
+            "description": "Get webhook delivery logs and status"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 System Analytics",
+      "description": "System-wide analytics and reporting",
+      "item": [
+        {
+          "name": "Get System Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "stats"]
+            },
+            "description": "Get real-time system statistics"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Chart Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/chart-data",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chart-data"]
+            },
+            "description": "Get transaction volume chart data"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🧪 Integration Testing",
+      "description": "End-to-end integration testing scenarios",
+      "item": [
+        {
+          "name": "Complete Customer Journey",
+          "description": "Tests the complete customer journey from wallet creation to FNB account upgrade",
+          "item": [
+            {
+              "name": "Step 1: Create Customer Wallet",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{api_key}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_name\": \"Integration Test Customer\",\n  \"customer_phone\": \"+267 77 888 999\",\n  \"customer_email\": \"integration@test.com\",\n  \"daily_limit\": 10000.00\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/wallets",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "wallets"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Integration wallet created\", function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    var response = pm.response.json();",
+                      "    pm.globals.set(\"integration_wallet_id\", response.id);",
+                      "    pm.globals.set(\"integration_ussd_code\", response.ussd_code);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Step 2: Process Multiple Payments",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{api_key}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"wallet_id\": \"{{integration_wallet_id}}\",\n  \"amount\": 500.00,\n  \"method\": \"qr\",\n  \"description\": \"Integration test payment\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/process",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "process"]
+                }
+              }
+            },
+            {
+              "name": "Step 3: Check Wallet Balance",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{api_key}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/wallets/{{integration_wallet_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "wallets", "{{integration_wallet_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Step 4: Upgrade to FNB Account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{api_key}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"account_type\": \"CHEQUE\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/wallets/{{integration_wallet_id}}/upgrade",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "wallets", "{{integration_wallet_id}}", "upgrade"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Account upgrade successful\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    var response = pm.response.json();",
+                      "    pm.expect(response.success).to.be.true;",
+                      "    pm.globals.set(\"integration_fnb_account\", response.fnb_account_number);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set timestamp for requests",
+          "pm.globals.set(\"timestamp\", new Date().toISOString());",
+          "",
+          "// Auto-set API key if not present",
+          "if (!pm.environment.get(\"api_key\")) {",
+          "    pm.environment.set(\"api_key\", \"pb_12345678_abcdef1234567890\");",
+          "}",
+          "",
+          "// Log request for debugging",
+          "console.log(`Making request to: ${pm.request.url.toString()}`);",
+          "if (pm.request.body && pm.request.body.mode === 'raw') {",
+          "    console.log(`Request body: ${pm.request.body.raw}`);",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test for all requests",
+          "pm.test(\"Response time is acceptable\", function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test(\"Content-Type is application/json\", function () {",
+          "    if (pm.response.headers.get(\"Content-Type\")) {",
+          "        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+          "    }",
+          "});",
+          "",
+          "// Log response for debugging",
+          "if (pm.response.code >= 400) {",
+          "    console.log(`Error response: ${pm.response.text()}`);",
+          "}"
+        ]
+      }
+    }
+  ]
+}

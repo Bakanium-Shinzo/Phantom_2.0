@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+FNB Phantom Banking - BPMN Process Definitions
+For use with Camunda Modeler and Camunda Platform
+
+Key Processes:
+1. Merchant Onboarding Process
+2. Customer Wallet Creation Process  
+3. Payment Settlement Process
+4. Account Upgrade Process
+5. KYC Verification Process
+-->
+
+<!-- ===================================================== -->
+<!-- 1. MERCHANT ONBOARDING PROCESS -->
+<!-- ===================================================== -->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="PhantomBankingProcesses" 
+                  targetNamespace="http://phantom.banking.fnb">
+
+  <bpmn:process id="MerchantOnboardingProcess" name="Merchant Onboarding Process" isExecutable="true">
+    
+    <bpmn:startEvent id="StartOnboarding" name="Merchant Registration Request">
+      <bpmn:outgoing>SequenceFlow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="ValidateBusinessInfo" name="Validate Business Information" camunda:delegateExpression="${validateBusinessDelegate}">
+      <bpmn:incoming>SequenceFlow_1</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="ValidationGateway" name="Valid Business Info?">
+      <bpmn:incoming>SequenceFlow_2</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_Valid</bpmn:outgoing>
+      <bpmn:outgoing>SequenceFlow_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="PerformKYB" name="Perform KYB Verification" camunda:delegateExpression="${kybVerificationDelegate}">
+      <bpmn:incoming>SequenceFlow_Valid</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="CreateFNBMerchantAccount" name="Create FNB Merchant Account" camunda:delegateExpression="${createFNBAccountDelegate}">
+      <bpmn:incoming>SequenceFlow_3</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="GenerateAPIKey" name="Generate API Key and Credentials" camunda:delegateExpression="${generateAPIKeyDelegate}">
+      <bpmn:incoming>SequenceFlow_4</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="SendWelcomeEmail" name="Send Welcome Email with Credentials" camunda:delegateExpression="${sendWelcomeEmailDelegate}">
+      <bpmn:incoming>SequenceFlow_5</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="NotifyFNB" name="Notify FNB of New Merchant" camunda:delegateExpression="${notifyFNBDelegate}">
+      <bpmn:incoming>SequenceFlow_6</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="OnboardingComplete" name="Merchant Onboarded Successfully">
+      <bpmn:incoming>SequenceFlow_7</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="RejectApplication" name="Reject Application and Notify" camunda:delegateExpression="${rejectApplicationDelegate}">
+      <bpmn:incoming>SequenceFlow_Invalid</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_Reject</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="OnboardingRejected" name="Application Rejected">
+      <bpmn:incoming>SequenceFlow_Reject</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="SequenceFlow_1" sourceRef="StartOnboarding" targetRef="ValidateBusinessInfo" />
+    <bpmn:sequenceFlow id="SequenceFlow_2" sourceRef="ValidateBusinessInfo" targetRef="ValidationGateway" />
+    <bpmn:sequenceFlow id="SequenceFlow_Valid" name="Valid" sourceRef="ValidationGateway" targetRef="PerformKYB">
+      <bpmn:conditionExpression>${validationResult == 'VALID'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SequenceFlow_Invalid" name="Invalid" sourceRef="ValidationGateway" targetRef="RejectApplication">
+      <bpmn:conditionExpression>${validationResult == 'INVALID'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SequenceFlow_3" sourceRef="PerformKYB" targetRef="CreateFNBMerchantAccount" />
+    <bpmn:sequenceFlow id="SequenceFlow_4" sourceRef="CreateFNBMerchantAccount" targetRef="GenerateAPIKey" />
+    <bpmn:sequenceFlow id="SequenceFlow_5" sourceRef="GenerateAPIKey" targetRef="SendWelcomeEmail" />
+    <bpmn:sequenceFlow id="SequenceFlow_6" sourceRef="SendWelcomeEmail" targetRef="NotifyFNB" />
+    <bpmn:sequenceFlow id="SequenceFlow_7" sourceRef="NotifyFNB" targetRef="OnboardingComplete" />
+    <bpmn:sequenceFlow id="SequenceFlow_Reject" sourceRef="RejectApplication" targetRef="OnboardingRejected" />
+
+  </bpmn:process>
+
+  <!-- ===================================================== -->
+  <!-- 2. PAYMENT SETTLEMENT PROCESS -->
+  <!-- ===================================================== -->
+  <bpmn:process id="PaymentSettlementProcess" name="Payment Settlement Process" isExecutable="true">
+    
+    <bpmn:startEvent id="PaymentInitiated" name="Customer Initiates Payment">
+      <bpmn:outgoing>Flow_Payment_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="ValidatePayment" name="Validate Payment Request" camunda:delegateExpression="${validatePaymentDelegate}">
+      <bpmn:incoming>Flow_Payment_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="PaymentValidGateway" name="Payment Valid?">
+      <bpmn:incoming>Flow_Payment_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Payment_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="CheckLimits" name="Check Transaction Limits" camunda:delegateExpression="${checkLimitsDelegate}">
+      <bpmn:incoming>Flow_Payment_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="LimitsGateway" name="Within Limits?">
+      <bpmn:incoming>Flow_Payment_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Limits_OK</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Limits_Exceeded</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="ProcessPayment" name="Process Payment to Phantom Wallet" camunda:delegateExpression="${processPaymentDelegate}">
+      <bpmn:incoming>Flow_Limits_OK</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="UpdateWalletBalance" name="Update Wallet Balance" camunda:delegateExpression="${updateWalletBalanceDelegate}">
+      <bpmn:incoming>Flow_Payment_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="NotifyFNBSettlement" name="Notify FNB for Settlement" camunda:delegateExpression="${notifyFNBSettlementDelegate}">
+      <bpmn:incoming>Flow_Payment_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:receiveTask id="AwaitFNBConfirmation" name="Await FNB Settlement Confirmation" messageRef="FNBSettlementConfirmation">
+      <bpmn:incoming>Flow_Payment_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_7</bpmn:outgoing>
+    </bpmn:receiveTask>
+
+    <bpmn:serviceTask id="SendMerchantNotification" name="Send Merchant Confirmation" camunda:delegateExpression="${sendMerchantNotificationDelegate}">
+      <bpmn:incoming>Flow_Payment_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_8</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="SendCustomerReceipt" name="Send Customer Receipt" camunda:delegateExpression="${sendCustomerReceiptDelegate}">
+      <bpmn:incoming>Flow_Payment_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_9</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="PaymentCompleted" name="Payment Successfully Completed">
+      <bpmn:incoming>Flow_Payment_9</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Error Handling -->
+    <bpmn:serviceTask id="RejectPayment" name="Reject Payment and Notify" camunda:delegateExpression="${rejectPaymentDelegate}">
+      <bpmn:incoming>Flow_Payment_Invalid</bpmn:incoming>
+      <bpmn:incoming>Flow_Limits_Exceeded</bpmn:incoming>
+      <bpmn:outgoing>Flow_Payment_Rejected</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="PaymentRejected" name="Payment Rejected">
+      <bpmn:incoming>Flow_Payment_Rejected</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Payment_1" sourceRef="PaymentInitiated" targetRef="ValidatePayment" />
+    <bpmn:sequenceFlow id="Flow_Payment_2" sourceRef="ValidatePayment" targetRef="PaymentValidGateway" />
+    <bpmn:sequenceFlow id="Flow_Payment_Valid" name="Valid" sourceRef="PaymentValidGateway" targetRef="CheckLimits">
+      <bpmn:conditionExpression>${paymentValid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Payment_Invalid" name="Invalid" sourceRef="PaymentValidGateway" targetRef="RejectPayment">
+      <bpmn:conditionExpression>${paymentValid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Payment_3" sourceRef="CheckLimits" targetRef="LimitsGateway" />
+    <bpmn:sequenceFlow id="Flow_Limits_OK" name="Within Limits" sourceRef="LimitsGateway" targetRef="ProcessPayment">
+      <bpmn:conditionExpression>${withinLimits == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Limits_Exceeded" name="Limits Exceeded" sourceRef="LimitsGateway" targetRef="RejectPayment">
+      <bpmn:conditionExpression>${withinLimits == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Payment_4" sourceRef="ProcessPayment" targetRef="UpdateWalletBalance" />
+    <bpmn:sequenceFlow id="Flow_Payment_5" sourceRef="UpdateWalletBalance" targetRef="NotifyFNBSettlement" />
+    <bpmn:sequenceFlow id="Flow_Payment_6" sourceRef="NotifyFNBSettlement" targetRef="AwaitFNBConfirmation" />
+    <bpmn:sequenceFlow id="Flow_Payment_7" sourceRef="AwaitFNBConfirmation" targetRef="SendMerchantNotification" />
+    <bpmn:sequenceFlow id="Flow_Payment_8" sourceRef="SendMerchantNotification" targetRef="SendCustomerReceipt" />
+    <bpmn:sequenceFlow id="Flow_Payment_9" sourceRef="SendCustomerReceipt" targetRef="PaymentCompleted" />
+    <bpmn:sequenceFlow id="Flow_Payment_Rejected" sourceRef="RejectPayment" targetRef="PaymentRejected" />
+
+  </bpmn:process>
+
+  <!-- ===================================================== -->
+  <!-- 3. ACCOUNT UPGRADE PROCESS -->
+  <!-- ===================================================== -->
+  <bpmn:process id="AccountUpgradeProcess" name="Phantom Wallet to FNB Account Upgrade" isExecutable="true">
+    
+    <bpmn:startEvent id="UpgradeInitiated" name="Customer Requests Account Upgrade">
+      <bpmn:outgoing>Flow_Upgrade_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="ValidateKYCStatus" name="Validate Customer KYC Status" camunda:delegateExpression="${validateKYCDelegate}">
+      <bpmn:incoming>Flow_Upgrade_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="KYCGateway" name="KYC Complete?">
+      <bpmn:incoming>Flow_Upgrade_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_KYC_Complete</bpmn:outgoing>
+      <bpmn:outgoing>Flow_KYC_Incomplete</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="CompleteKYC" name="Complete KYC Verification" camunda:assignee="${kycOfficer}">
+      <bpmn:incoming>Flow_KYC_Incomplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="CreateFNBAccount" name="Create Full FNB Account" camunda:delegateExpression="${createFNBAccountDelegate}">
+      <bpmn:incoming>Flow_KYC_Complete</bpmn:incoming>
+      <bpmn:incoming>Flow_Upgrade_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="TransferBalance" name="Transfer Phantom Wallet Balance" camunda:delegateExpression="${transferBalanceDelegate}">
+      <bpmn:incoming>Flow_Upgrade_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="UpdateWalletStatus" name="Update Wallet Status to Upgraded" camunda:delegateExpression="${updateWalletStatusDelegate}">
+      <bpmn:incoming>Flow_Upgrade_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="SendAccountDetails" name="Send Account Details to Customer" camunda:delegateExpression="${sendAccountDetailsDelegate}">
+      <bpmn:incoming>Flow_Upgrade_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="NotifyMerchant" name="Notify Merchant of Account Upgrade" camunda:delegateExpression="${notifyMerchantDelegate}">
+      <bpmn:incoming>Flow_Upgrade_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Upgrade_8</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="UpgradeCompleted" name="Account Upgrade Completed">
+      <bpmn:incoming>Flow_Upgrade_8</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Upgrade_1" sourceRef="UpgradeInitiated" targetRef="ValidateKYCStatus" />
+    <bpmn:sequenceFlow id="Flow_Upgrade_2" sourceRef="ValidateKYCStatus" targetRef="KYCGateway" />
+    <bpmn:sequenceFlow id="Flow_KYC_Complete" name="KYC Complete" sourceRef="KYCGateway" targetRef="CreateFNBAccount">
+      <bpmn:conditionExpression>${kycStatus == 'COMPLETE'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_KYC_Incomplete" name="KYC Incomplete" sourceRef="KYCGateway" targetRef="CompleteKYC">
+      <bpmn:conditionExpression>${kycStatus != 'COMPLETE'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Upgrade_3" sourceRef="CompleteKYC" targetRef="CreateFNBAccount" />
+    <bpmn:sequenceFlow id="Flow_Upgrade_4" sourceRef="CreateFNBAccount" targetRef="TransferBalance" />
+    <bpmn:sequenceFlow id="Flow_Upgrade_5" sourceRef="TransferBalance" targetRef="UpdateWalletStatus" />
+    <bpmn:sequenceFlow id="Flow_Upgrade_6" sourceRef="UpdateWalletStatus" targetRef="SendAccountDetails" />
+    <bpmn:sequenceFlow id="Flow_Upgrade_7" sourceRef="SendAccountDetails" targetRef="NotifyMerchant" />
+    <bpmn:sequenceFlow id="Flow_Upgrade_8" sourceRef="NotifyMerchant" targetRef="UpgradeCompleted" />
+
+  </bpmn:process>
+
+  <!-- ===================================================== -->
+  <!-- 4. FRAUD DETECTION PROCESS -->
+  <!-- ===================================================== -->
+  <bpmn:process id="FraudDetectionProcess" name="Fraud Detection and Prevention" isExecutable="true">
+    
+    <bpmn:startEvent id="TransactionSubmitted" name="Transaction Submitted">
+      <bpmn:outgoing>Flow_Fraud_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="RiskScoring" name="Calculate Risk Score" camunda:delegateExpression="${riskScoringDelegate}">
+      <bpmn:incoming>Flow_Fraud_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fraud_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="RiskGateway" name="Risk Level?">
+      <bpmn:incoming>Flow_Fraud_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Low_Risk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Medium_Risk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_High_Risk</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="AutoApprove" name="Auto-Approve Transaction" camunda:delegateExpression="${autoApproveDelegate}">
+      <bpmn:incoming>Flow_Low_Risk</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="ManualReview" name="Manual Review Required" camunda:assignee="${fraudAnalyst}">
+      <bpmn:incoming>Flow_Medium_Risk</bpmn:incoming>
+      <bpmn:outgoing>Flow_Review_Decision</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="BlockTransaction" name="Block Transaction and Alert" camunda:delegateExpression="${blockTransactionDelegate}">
+      <bpmn:incoming>Flow_High_Risk</bpmn:incoming>
+      <bpmn:outgoing>Flow_Blocked</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="ReviewGateway" name="Review Decision?">
+      <bpmn:incoming>Flow_Review_Decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved_Review</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected_Review</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="TransactionApproved" name="Transaction Approved">
+      <bpmn:incoming>Flow_Approved</bpmn:incoming>
+      <bpmn:incoming>Flow_Approved_Review</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="TransactionBlocked" name="Transaction Blocked">
+      <bpmn:incoming>Flow_Blocked</bpmn:incoming>
+      <bpmn:incoming>Flow_Rejected_Review</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Fraud_1" sourceRef="TransactionSubmitted" targetRef="RiskScoring" />
+    <bpmn:sequenceFlow id="Flow_Fraud_2" sourceRef="RiskScoring" targetRef="RiskGateway" />
+    <bpmn:sequenceFlow id="Flow_Low_Risk" name="Low Risk" sourceRef="RiskGateway" targetRef="AutoApprove">
+      <bpmn:conditionExpression>${riskScore &lt; 30}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Medium_Risk" name="Medium Risk" sourceRef="RiskGateway" targetRef="ManualReview">
+      <bpmn:conditionExpression>${riskScore &gt;= 30 &amp;&amp; riskScore &lt; 70}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_High_Risk" name="High Risk" sourceRef="RiskGateway" targetRef="BlockTransaction">
+      <bpmn:conditionExpression>${riskScore &gt;= 70}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Approved" sourceRef="AutoApprove" targetRef="TransactionApproved" />
+    <bpmn:sequenceFlow id="Flow_Review_Decision" sourceRef="ManualReview" targetRef="ReviewGateway" />
+    <bpmn:sequenceFlow id="Flow_Approved_Review" name="Approved" sourceRef="ReviewGateway" targetRef="TransactionApproved">
+      <bpmn:conditionExpression>${reviewDecision == 'APPROVED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected_Review" name="Rejected" sourceRef="ReviewGateway" targetRef="TransactionBlocked">
+      <bpmn:conditionExpression>${reviewDecision == 'REJECTED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Blocked" sourceRef="BlockTransaction" targetRef="TransactionBlocked" />
+
+  </bpmn:process>
+
+  <!-- Message Definitions -->
+  <bpmn:message id="FNBSettlementConfirmation" name="FNB Settlement Confirmation" />
+
+  <!-- ===================================================== -->
+  <!-- CAMUNDA DEPLOYMENT METADATA -->
+  <!-- ===================================================== -->
+  <bpmn:extension>
+    <camunda:properties>
+      <camunda:property name="versionTag" value="1.0.0" />
+      <camunda:property name="deploymentName" value="FNB Phantom Banking Processes" />
+      <camunda:property name="tenantId" value="fnb-phantom" />
+    </camunda:properties>
+  </bpmn:extension>
+
+</bpmn:definitions>
+
+<!-- 
+DEPLOYMENT INSTRUCTIONS:
+
+1. Import into Camunda Modeler:
+   - Open Camunda Modeler
+   - File > Open > Select this file
+   - Review and modify process definitions as needed
+
+2. Deploy to Camunda Platform:
+   - Connect to Camunda engine
+   - Deploy via Modeler or REST API
+   - Configure process variables and delegates
+
+3. Java Delegates Implementation:
+   Create Java classes for service tasks:
+   - ValidateBusinessDelegate
+   - CreateFNBAccountDelegate  
+   - ProcessPaymentDelegate
+   - NotifyFNBDelegate
+   - etc.
+
+4. Process Variables:
+   Configure these variables for process execution:
+   - businessInfo (object)
+   - paymentRequest (object)
+   - kycStatus (string)
+   - riskScore (integer)
+   - reviewDecision (string)
+
+5. User Task Assignment:
+   Configure user groups and roles:
+   - kycOfficer: KYC verification team
+   - fraudAnalyst: Fraud detection team
+   - businessApprover: Business approval team
+
+6. External System Integration:
+   Configure connectors for:
+   - FNB Core Banking API
+   - Email notification service
+   - SMS notification service
+   - Document management system
+
+This BPMN definition provides enterprise-grade process automation
+for the Phantom Banking system, ensuring compliance, auditability,
+and scalable business process management.
+-->
